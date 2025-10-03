@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ASL Recognition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+  <!-- Header -->
+  <header class="sticky top-0 w-full p-4 bg-white z-20">
+    <div class="container mx-auto flex justify-between items-center">
+      <h1 class="text-3xl font-bold text-sky-600">SignLearn</h1>
+      <nav class="hidden md:flex items-center space-x-8 text-lg">
+        <a href="/" class="text-sky-600 font-semibold border-b-2 border-sky-600 pb-1">Home</a>
+        <a href="/learning" class="text-gray-600 hover:text-sky-600 transition-colors">Learning</a>
+        <a href="/prediction" class="text-gray-600 hover:text-sky-600 transition-colors">Live Practice</a>
+        <a href="#" onclick="navigateToDictionary(event)" class="text-gray-600 hover:text-sky-600 transition-colors">Dictionary</a>
+      </nav>
+      <div id="auth-links">
+        <!-- Auth buttons load here -->
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Section 1: Learning -->
+    <section class="min-h-screen bg-white flex items-center relative overflow-hidden">
+      <div class="absolute inset-y-0 left-0 w-full md:w-3/5 bg-gradient-to-r from-sky-400 to-blue-500 transform -skew-x-6 -ml-10"></div>
+      <div class="container mx-auto px-6 relative z-10">
+        <div class="grid md:grid-cols-2 gap-12 items-center">
+          <!-- Text -->
+          <div class="text-white">
+            <h2 class="text-4xl md:text-5xl font-extrabold mb-4">Interactive Learning</h2>
+            <p class="text-xl md:text-2xl mb-8 max-w-lg text-sky-100">Dive into our structured lessons. Learn new signs, take quizzes, and track your progress with our guided curriculum.</p>
+            <a href="/learning" class="inline-block bg-white text-blue-600 font-bold py-3 px-8 rounded-lg text-lg transition-transform transform hover:scale-105">Start a Lesson</a>
+          </div>
+          <!-- Image -->
+          <div class="flex justify-center md:justify-end">
+            <!-- ✅ FIX: Corrected image path -->
+            <img src="/static/home.jpeg" alt="A person learning sign language from a screen" class="rounded-lg shadow-2xl object-cover h-[400px] w-full max-w-md">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Live Practice -->
+    <section class="min-h-screen bg-gray-100 flex items-center relative overflow-hidden">
+        <div class="absolute inset-y-0 right-0 w-full md:w-3/5 bg-gradient-to-l from-slate-700 to-slate-800 transform skew-x-6 -mr-10"></div>
+        <div class="container mx-auto px-6 relative z-10">
+          <div class="grid md:grid-cols-2 gap-12 items-center">
+            <!-- Image (order changed for visual separation) -->
+            <div class="flex justify-center md:justify-start">
+              <!-- ✅ FIX: Corrected image path -->
+              <img src="/static/home2.jpeg" alt="A person practicing sign language in front of a camera" class="rounded-lg shadow-2xl object-cover h-[400px] w-full max-w-md">
+            </div>
+            <!-- Text -->
+            <div class="text-center md:text-right md:pl-10">
+              <h2 class="text-4xl md:text-5xl font-extrabold mb-4 text-gray-800 md:text-white">Live Practice</h2>
+              <p class="text-xl md:text-2xl mb-8 max-w-lg text-gray-600 md:text-slate-300 md:ml-auto">Use your webcam to practice in real-time. Our model will recognize your signs and give you instant feedback.</p>
+              <a href="/prediction" class="inline-block bg-slate-800 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform transform hover:scale-105 md:bg-white md:text-slate-800 hover:bg-slate-200">Try It Live</a>
+            </div>
+          </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Contact Us -->
+    <section class="bg-white py-20">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-4">Contact Us</h2>
+            <p class="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">Have questions or feedback? We'd love to hear from you. Fill out the form below to get in touch with our team.</p>
+            <form class="max-w-xl mx-auto">
+                <div class="grid sm:grid-cols-2 gap-6 mb-6">
+                    <input type="text" placeholder="Your Name" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <input type="email" placeholder="Your Email" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <textarea placeholder="Your Message" rows="5" class="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                <button type="submit" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-12 rounded-lg text-lg transition-colors">Send Message</button>
+            </form>
+        </div>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="bg-slate-800 text-white py-8">
+      <div class="container mx-auto text-center">
+          <p>&copy; 2025 SignLearn. All Rights Reserved.</p>
+      </div>
+  </footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    
+    // ✅ FIX: Updated Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLqGnSG7vRm_1ivuy7HCSvJ0x_9nopqH0",
+      authDomain: "sign-lang-699ef.firebaseapp.com",
+      projectId: "sign-lang-699ef",
+      storageBucket: "sign-lang-699ef.appspot.com",
+      messagingSenderId: "936027174790",
+      appId: "1:936027174790:web:6a781c80d6eb2763d49e07",
+      measurementId: "G-E1YMLETV0E"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const authLinks = document.getElementById('auth-links');
+
+    onAuthStateChanged(auth, (user) => {
+      if (user && !user.isAnonymous) {
+        authLinks.innerHTML = `
+          <div class="flex items-center space-x-4">
+            <span class="text-gray-700">${user.email}</span>
+            <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
+          </div>
+        `;
+        document.getElementById('logout-btn').addEventListener('click', () => {
+          signOut(auth);
+        });
+      } else {
+        authLinks.innerHTML = `
+          <a href="/login.html" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+            Login
+          </a>
+        `;
+      }
+    });
+
+    function navigateToDictionary(event) {
+        event.preventDefault();
+        localStorage.setItem('showDictionary', 'true');
+        window.location.href = '/learning';
+    }
+    window.navigateToDictionary = navigateToDictionary;
+  </script>
+
+</body>
+</html>
+

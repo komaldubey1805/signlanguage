@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login & Sign Up - ASL Recognition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-sky-50 flex items-center justify-center min-h-screen p-4">
+  <div class="bg-white p-8 sm:p-10 rounded-2xl shadow-xl w-full max-w-md">
+    <!-- Tabs -->
+    <div class="flex border-b mb-8">
+      <button id="login-tab" class="flex-1 py-2 font-semibold text-sky-600 border-b-2 border-sky-600">Login</button>
+      <button id="signup-tab" class="flex-1 py-2 font-semibold text-gray-500">Sign Up</button>
+    </div>
+
+    <!-- Login -->
+    <div id="login-form">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">Welcome Back!</h1>
+      <p class="text-gray-500 mb-8 text-center">Log in to access your saved progress.</p>
+      <input type="email" id="login-email" placeholder="Email Address" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4">
+      <input type="password" id="login-password" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-6">
+      <p id="login-error-message" class="text-red-500 mb-4 h-6 text-sm text-center"></p>
+      <button id="login-btn" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-lg">Login</button>
+    </div>
+
+    <!-- Signup -->
+    <div id="signup-form" style="display: none;">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">Create Account</h1>
+      <p class="text-gray-500 mb-8 text-center">Start your ASL journey today.</p>
+      <input type="email" id="signup-email" placeholder="Email Address" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4">
+      <input type="password" id="signup-password" placeholder="Password (min 6 chars)" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4">
+      <input type="password" id="confirm-password" placeholder="Confirm Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-6">
+      <p id="signup-error-message" class="text-red-500 mb-4 h-6 text-sm text-center"></p>
+      <button id="signup-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-lg">Create Account</button>
+    </div>
+
+    <a href="/" class="inline-block mt-6 text-sky-600 hover:underline text-center w-full">Continue as Guest</a>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    // ✅ FIX: Updated Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLqGnSG7vRm_1ivuy7HCSvJ0x_9nopqH0",
+      authDomain: "sign-lang-699ef.firebaseapp.com",
+      projectId: "sign-lang-699ef",
+      storageBucket: "sign-lang-699ef.appspot.com",
+      messagingSenderId: "936027174790",
+      appId: "1:936027174790:web:6a781c80d6eb2763d49e07",
+      measurementId: "G-E1YMLETV0E"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Tabs
+    const loginTab = document.getElementById('login-tab');
+    const signupTab = document.getElementById('signup-tab');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+
+    loginTab.addEventListener('click', () => {
+      loginForm.style.display = 'block';
+      signupForm.style.display = 'none';
+      loginTab.classList.add('text-sky-600','border-sky-600');
+      signupTab.classList.remove('text-sky-600','border-sky-600');
+      signupTab.classList.add('text-gray-500');
+    });
+    signupTab.addEventListener('click', () => {
+      loginForm.style.display = 'none';
+      signupForm.style.display = 'block';
+      signupTab.classList.add('text-sky-600','border-sky-600');
+      loginTab.classList.remove('text-sky-600','border-sky-600');
+      loginTab.classList.add('text-gray-500');
+    });
+
+    // Auth
+    onAuthStateChanged(auth, (user) => {
+      if (user && !user.isAnonymous) window.location.href = "/";
+    });
+
+    async function handleInitialAuth() {
+      if (!auth.currentUser) await signInAnonymously(auth);
+    }
+    handleInitialAuth();
+
+    // Login
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error-message');
+      errorEl.textContent = '';
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+
+    // Signup
+    document.getElementById('signup-btn').addEventListener('click', async () => {
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+      const confirm = document.getElementById('confirm-password').value;
+      const errorEl = document.getElementById('signup-error-message');
+      errorEl.textContent = '';
+      if (password !== confirm) {
+        errorEl.textContent = 'Passwords do not match.';
+        return;
+      }
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  </script>
+</body>
+</html>

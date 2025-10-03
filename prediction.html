@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASL - Live Prediction</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .loader { border-top-color: #38bdf8; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Added styles for video upload interface */
+    .tab-active { background-color: #0ea5e9; color: white; }
+    .tab-inactive { background-color: #f1f5f9; color: #64748b; }
+    .upload-area { border: 2px dashed #cbd5e1; transition: all 0.3s ease; }
+    .upload-area:hover { border-color: #0ea5e9; background-color: #f8fafc; }
+    .upload-area.dragover { border-color: #0ea5e9; background-color: #eff6ff; }
+  </style>
+</head>
+<body class="bg-sky-50 text-gray-800 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <div class="absolute top-6 left-6">
+    <a href="/" class="text-sky-600 hover:text-sky-500">&larr; Back to Home</a>
+  </div>
+
+  <div class="w-full max-w-7xl mx-auto">
+    <div class="text-center mb-10">
+      <h1 class="text-5xl font-bold tracking-tight text-gray-900">ASL Recognition</h1>
+      <p class="text-xl text-gray-600 mt-2">Translate signs in real-time or analyze uploaded videos.</p>
+    </div>
+
+    <!-- Added tab navigation for live camera vs video upload -->
+    <div class="flex justify-center mb-8">
+      <div class="bg-white rounded-lg p-1 shadow-lg">
+        <button id="live-tab" onclick="switchTab('live')" class="tab-active px-6 py-3 rounded-md font-semibold transition-all">
+          Live Camera
+        </button>
+        <button id="upload-tab" onclick="switchTab('upload')" class="tab-inactive px-6 py-3 rounded-md font-semibold transition-all">
+          Upload Video
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Camera Section (existing functionality) -->
+    <div id="live-section" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Left -->
+      <div class="bg-white rounded-2xl shadow-xl p-6 flex flex-col">
+        <h2 class="text-2xl font-semibold mb-4 text-sky-600">Live Feed</h2>
+        <div class="aspect-video bg-gray-900 rounded-lg overflow-hidden relative mb-4">
+          <img id="video" class="w-full h-full object-contain">
+          <div id="placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500">Camera is off</div>
+          <div id="loader" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75" style="display: none;">
+            <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24"></div>
+          </div>
+        </div>
+        <div class="flex justify-center gap-4">
+          <button id="start-btn" onclick="startDetection()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg">Start</button>
+          <button id="stop-btn" onclick="stopDetection()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-6 rounded-lg" disabled>Stop</button>
+        </div>
+      </div>
+
+      <!-- Right -->
+      <div class="flex flex-col gap-8">
+        <div class="bg-white rounded-2xl shadow-xl p-6 flex flex-col h-full">
+          <h2 class="text-2xl font-semibold mb-4 text-sky-600">Recognized Text</h2>
+          <textarea id="sentence" class="w-full flex-grow bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-3 text-lg resize-none" readonly></textarea>
+          <div class="mt-4 flex flex-wrap justify-center gap-4">
+            <button onclick="speakText()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg">Speak</button>
+            <button onclick="clearText()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg">Clear</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-semibold mb-4 text-center text-sky-600">ASL Alphabet Challenge</h2>
+          <div class="text-center">
+            <p class="text-lg mb-2">Sign the following letter:</p>
+            <p id="challenge-letter" class="text-7xl font-bold text-sky-500 h-24">?</p>
+            <p id="feedback" class="h-6 mt-2 text-lg"></p>
+            <button id="start-challenge-btn" onclick="startChallenge()" class="mt-4 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg">Start Challenge</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Upload Section (new functionality) -->
+    <div id="upload-section" class="hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Upload Area -->
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-semibold mb-4 text-sky-600">Upload Video</h2>
+          
+          <div id="upload-area" class="upload-area rounded-lg p-8 text-center mb-4">
+            <div class="mb-4">
+              <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <p class="text-lg font-medium text-gray-900 mb-2">Drop your video here or click to browse</p>
+            <p class="text-sm text-gray-500 mb-4">Supports MP4, AVI, MOV, MKV, WEBM (max 100MB)</p>
+            <input type="file" id="video-input" accept=".mp4,.avi,.mov,.mkv,.webm" class="hidden">
+            <button onclick="document.getElementById('video-input').click()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg">
+              Choose File
+            </button>
+          </div>
+
+          <div id="upload-progress" class="hidden mb-4">
+            <div class="bg-gray-200 rounded-full h-2">
+              <div id="progress-bar" class="bg-sky-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="progress-text" class="text-sm text-gray-600 mt-2">Processing video...</p>
+          </div>
+
+          <div id="upload-error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p class="text-red-800" id="error-message"></p>
+          </div>
+        </div>
+
+        <!-- Results Area -->
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-semibold mb-4 text-sky-600">Analysis Results</h2>
+          
+          <div id="no-results" class="text-center text-gray-500 py-8">
+            <p>Upload a video to see analysis results</p>
+          </div>
+
+          <div id="results-content" class="hidden">
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+              <div class="bg-sky-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-sky-600" id="total-duration">0s</p>
+                <p class="text-sm text-gray-600">Duration</p>
+              </div>
+              <div class="bg-green-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-green-600" id="signs-detected">0</p>
+                <p class="text-sm text-gray-600">Signs Detected</p>
+              </div>
+              <div class="bg-purple-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-purple-600" id="unique-signs">0</p>
+                <p class="text-sm text-gray-600">Unique Signs</p>
+              </div>
+              <div class="bg-orange-50 rounded-lg p-4 text-center">
+                <p class="text-2xl font-bold text-orange-600" id="avg-confidence">0%</p>
+                <p class="text-sm text-gray-600">Avg Confidence</p>
+              </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="mb-4">
+              <h3 class="text-lg font-semibold mb-2">Detection Timeline</h3>
+              <div id="timeline-container" class="max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-4">
+                <!-- Timeline items will be populated here -->
+              </div>
+            </div>
+
+            <!-- Export Button -->
+            <div class="text-center">
+              <button onclick="exportResults()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                Export Results (JSON)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const placeholder = document.getElementById('placeholder');
+    const loader = document.getElementById('loader');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const sentenceEl = document.getElementById('sentence');
+    const videoSrc = "/video_feed";
+    let sentenceInterval;
+
+    let currentResults = null;
+
+    function switchTab(tab) {
+      const liveTab = document.getElementById('live-tab');
+      const uploadTab = document.getElementById('upload-tab');
+      const liveSection = document.getElementById('live-section');
+      const uploadSection = document.getElementById('upload-section');
+
+      if (tab === 'live') {
+        liveTab.className = 'tab-active px-6 py-3 rounded-md font-semibold transition-all';
+        uploadTab.className = 'tab-inactive px-6 py-3 rounded-md font-semibold transition-all';
+        liveSection.classList.remove('hidden');
+        uploadSection.classList.add('hidden');
+      } else {
+        liveTab.className = 'tab-inactive px-6 py-3 rounded-md font-semibold transition-all';
+        uploadTab.className = 'tab-active px-6 py-3 rounded-md font-semibold transition-all';
+        liveSection.classList.add('hidden');
+        uploadSection.classList.remove('hidden');
+      }
+    }
+
+    // Video upload functionality
+    const uploadArea = document.getElementById('upload-area');
+    const videoInput = document.getElementById('video-input');
+    const uploadProgress = document.getElementById('upload-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const uploadError = document.getElementById('upload-error');
+    const errorMessage = document.getElementById('error-message');
+
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleVideoUpload(files[0]);
+      }
+    });
+
+    videoInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleVideoUpload(e.target.files[0]);
+      }
+    });
+
+    function handleVideoUpload(file) {
+      // Validate file type
+      const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
+      if (!allowedTypes.includes(file.type)) {
+        showError('Invalid file type. Please upload MP4, AVI, MOV, MKV, or WEBM files.');
+        return;
+      }
+
+      // Validate file size (100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        showError('File too large. Maximum size is 100MB.');
+        return;
+      }
+
+      hideError();
+      showProgress();
+
+      const formData = new FormData();
+      formData.append('video', file);
+
+      fetch('/upload_video', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        hideProgress();
+        if (data.error) {
+          showError(data.error);
+        } else {
+          displayResults(data);
+        }
+      })
+      .catch(error => {
+        hideProgress();
+        showError('Error uploading video: ' + error.message);
+      });
+    }
+
+    function showProgress() {
+      uploadProgress.classList.remove('hidden');
+      progressBar.style.width = '100%';
+    }
+
+    function hideProgress() {
+      uploadProgress.classList.add('hidden');
+      progressBar.style.width = '0%';
+    }
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      uploadError.classList.remove('hidden');
+    }
+
+    function hideError() {
+      uploadError.classList.add('hidden');
+    }
+
+    function displayResults(results) {
+      currentResults = results;
+      
+      // Update statistics
+      document.getElementById('total-duration').textContent = results.total_duration + 's';
+      document.getElementById('signs-detected').textContent = results.signs_detected;
+      document.getElementById('unique-signs').textContent = results.unique_signs;
+      document.getElementById('avg-confidence').textContent = Math.round(results.avg_confidence * 100) + '%';
+
+      // Update timeline
+      const timelineContainer = document.getElementById('timeline-container');
+      timelineContainer.innerHTML = '';
+
+      if (results.segments && results.segments.length > 0) {
+        results.segments.forEach(segment => {
+          const timelineItem = document.createElement('div');
+          timelineItem.className = 'flex justify-between items-center py-2 px-3 bg-white rounded mb-2';
+          timelineItem.innerHTML = `
+            <div>
+              <span class="font-semibold text-sky-600">${segment.sign}</span>
+              <span class="text-sm text-gray-500 ml-2">${segment.start_time}s - ${segment.end_time}s</span>
+            </div>
+            <div class="text-sm text-gray-600">
+              ${Math.round(segment.avg_confidence * 100)}%
+            </div>
+          `;
+          timelineContainer.appendChild(timelineItem);
+        });
+      } else {
+        timelineContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No signs detected in the video</p>';
+      }
+
+      // Show results
+      document.getElementById('no-results').classList.add('hidden');
+      document.getElementById('results-content').classList.remove('hidden');
+    }
+
+    function exportResults() {
+      if (currentResults) {
+        const dataStr = JSON.stringify(currentResults, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'asl_analysis_results.json';
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function startDetection() {
+      placeholder.style.display = 'none';
+      loader.style.display = 'flex'; 
+      video.src = videoSrc + "?t=" + new Date().getTime();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      sentenceInterval = setInterval(updateSentence, 500);
+    }
+
+    function stopDetection() {
+      video.src = '';
+      placeholder.style.display = 'flex';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      clearInterval(sentenceInterval);
+    }
+
+    video.onload = () => { loader.style.display = 'none'; };
+    video.onerror = () => {
+      loader.style.display = 'none';
+      placeholder.innerText = 'Error: Stream failed.';
+      stopDetection();
+    };
+
+    async function updateSentence() {
+      try {
+        const response = await fetch('/sentence');
+        const data = await response.json();
+        if (data.sentence.trim() !== sentenceEl.value.trim()) {
+          sentenceEl.value = data.sentence;
+          if (challengeActive && data.current_symbol) {
+            checkGuess(data.current_symbol);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching sentence:", error);
+      }
+    }
+
+    function speakText() {
+      const text = sentenceEl.value;
+      if (text && 'speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    async function clearText() {
+      await fetch('/clear', { method: 'POST' });
+      sentenceEl.value = '';
+    }
+
+    // Game
+    const challengeLetterEl = document.getElementById('challenge-letter');
+    const feedbackEl = document.getElementById('feedback');
+    const startChallengeBtn = document.getElementById('start-challenge-btn');
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+    let currentChallengeLetter = '';
+    let challengeActive = false;
+    let guessTimeout;
+
+    function startChallenge() {
+      if (!stopBtn.disabled) {
+        challengeActive = true;
+        startChallengeBtn.disabled = true;
+        startChallengeBtn.innerText = "Challenge in Progress...";
+        nextLetter();
+      } else {
+        alert("Please start the camera feed first!");
+      }
+    }
+
+    function nextLetter() {
+      feedbackEl.textContent = '';
+      feedbackEl.className = 'h-6 mt-2 text-lg';
+      const randomIndex = Math.floor(Math.random() * alphabet.length);
+      currentChallengeLetter = alphabet[randomIndex];
+      challengeLetterEl.textContent = currentChallengeLetter;
+    }
+
+    function checkGuess(guess) {
+      if (!challengeActive || guess.length > 1) return;
+      clearTimeout(guessTimeout);
+      if (guess.toUpperCase() === currentChallengeLetter) {
+        feedbackEl.textContent = 'Correct!';
+        feedbackEl.className = 'h-6 mt-2 text-lg text-green-600';
+        challengeActive = false;
+        setTimeout(() => {
+          challengeActive = true;
+          nextLetter();
+        }, 1500);
+      } else {
+        feedbackEl.textContent = 'Keep Trying...';
+        feedbackEl.className = 'h-6 mt-2 text-lg text-red-600';
+        guessTimeout = setTimeout(() => { feedbackEl.textContent = ''; }, 1000);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASL - Learning Center</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #fdfaf5; }
+    .progress-bar-fill { transition: width 0.3s ease-in-out; }
+    .option-btn { border: 2px solid #e5e7eb; transition: all 0.2s; }
+    .option-btn.selected { border-color: #38bdf8; background-color: #f0f9ff; }
+    .option-btn.correct { border-color: #22c55e; background-color: #f0fdf4; }
+    .option-btn.incorrect { border-color: #ef4444; background-color: #fef2f2; }
+    .lesson-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .lesson-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+  </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-4">
+
+  <!-- Lesson Selection -->
+  <div id="lesson-selection-screen" class="w-full max-w-2xl mx-auto text-center">
+    <h1 class="text-4xl font-bold text-gray-800 mb-2">ASL Alphabet Lessons</h1>
+    <p id="welcome-message" class="text-lg text-gray-600 mb-8">Loading...</p>
+    <div id="lesson-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    <div class="mt-8 space-x-6">
+      <a href="/" class="text-gray-500 hover:text-gray-800 transition-colors">&larr; Back to Home</a>
+      <button id="show-dictionary-btn" class="text-sky-600 font-semibold hover:underline">View Full Alphabet Dictionary</button>
+    </div>
+  </div>
+
+  <!-- Lesson View -->
+  <div id="lesson-view-screen" class="w-full max-w-2xl mx-auto" style="display: none;">
+    <header class="w-full mb-8">
+      <div class="flex justify-between items-center mb-2">
+        <button id="back-to-lessons-btn" class="text-gray-500 hover:text-gray-800 transition-colors flex items-center">Menu</button>
+        <div class="flex items-center space-x-2 text-gray-500">
+          <span id="progress-text" class="text-gray-600 font-semibold"></span>
+        </div>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-2.5">
+        <div id="progress-bar" class="bg-sky-500 h-2.5 rounded-full progress-bar-fill" style="width: 0%"></div>
+      </div>
+    </header>
+    <main id="lesson-container" class="text-center">
+      <h1 id="lesson-title" class="text-3xl font-bold text-gray-800 mb-6"></h1>
+      <div id="main-image-container" class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <img id="lesson-image" src="" alt="ASL Sign"
+          class="mx-auto rounded-md shadow-md w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 object-contain">
+      </div>
+      <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto"></div>
+      <p id="feedback-text" class="mt-4 text-xl font-semibold h-8"></p>
+    </main>
+    <footer class="w-full max-w-2xl mx-auto mt-6">
+      <button id="action-btn" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 px-6 rounded-xl text-lg transition"></button>
+    </footer>
+  </div>
+
+  <!-- Dictionary -->
+  <div id="dictionary-screen" class="w-full max-w-4xl mx-auto text-center" style="display: none;">
+    <h1 class="text-4xl font-bold text-gray-800 mb-8">ASL Alphabet Dictionary</h1>
+    <div id="dictionary-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+    <button id="back-from-dictionary-btn" class="mt-8 text-gray-500 hover:text-gray-800 transition-colors">&larr; Back to Lessons</button>
+  </div>
+
+  <!-- Zoom Modal -->
+  <div id="zoom-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4" style="display: none;">
+    <div class="bg-white rounded-xl p-8 max-w-sm w-full text-center relative">
+      <button id="close-zoom-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold leading-none">&times;</button>
+      <img id="zoomed-image" src="" alt="Zoomed ASL Sign" class="mx-auto rounded-lg shadow-lg w-64 h-64 object-contain mb-4">
+      <p id="zoomed-letter" class="text-6xl font-bold text-gray-800"></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLqGnSG7vRm_1ivuy7HCSvJ0x_9nopqH0",
+      authDomain: "sign-lang-699ef.firebaseapp.com",
+      projectId: "sign-lang-699ef",
+      storageBucket: "sign-lang-699ef.appspot.com",
+      messagingSenderId: "936027174790",
+      appId: "1:936027174790:web:6a781c80d6eb2763d49e07",
+      measurementId: "G-E1YMLETV0E"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let completedLessons = [];
+
+    const allAlphabetData = [
+      { letter: 'A', image: '/static/alphabate/A.jpeg' }, { letter: 'B', image: '/static/alphabate/B.jpeg' },
+      { letter: 'C', image: '/static/alphabate/C.jpeg' }, { letter: 'D', image: '/static/alphabate/D.jpeg' },
+      { letter: 'E', image: '/static/alphabate/E.jpeg' }, { letter: 'F', image: '/static/alphabate/F.jpeg' },
+      { letter: 'G', image: '/static/alphabate/G.jpeg' }, { letter: 'H', image: '/static/alphabate/H.jpeg' },
+      { letter: 'I', image: '/static/alphabate/I.jpeg' }, { letter: 'J', image: '/static/alphabate/J.jpeg' },
+      { letter: 'K', image: '/static/alphabate/K.jpeg' }, { letter: 'L', image: '/static/alphabate/L.jpeg' },
+      { letter: 'M', image: '/static/alphabate/M.jpeg' }, { letter: 'N', image: '/static/alphabate/N.jpeg' },
+      { letter: 'O', image: '/static/alphabate/O.jpeg' }, { letter: 'P', image: '/static/alphabate/P.jpeg' },
+      { letter: 'Q', image: '/static/alphabate/Q.jpeg' }, { letter: 'R', image: '/static/alphabate/R.jpeg' },
+      { letter: 'S', image: '/static/alphabate/S.jpeg' }, { letter: 'T', image: '/static/alphabate/T.jpeg' },
+      { letter: 'U', image: '/static/alphabate/U.jpeg' }, { letter: 'V', image: '/static/alphabate/V.jpeg' },
+      { letter: 'W', image: '/static/alphabate/W.jpeg' }, { letter: 'X', image: '/static/alphabate/X.jpeg' },
+      { letter: 'Y', image: '/static/alphabate/Y.jpeg' }, { letter: 'Z', image: '/static/alphabate/Z.jpeg' }
+    ];
+
+    const lessons = [
+      { title: "Lesson 1: The Basics", letters: ['A','B','C','D','E'] },
+      { title: "Lesson 2: Easy Signs", letters: ['F','G','H','I','J'] },
+      { title: "Lesson 3: Hand Shapes", letters: ['K','L','M','N','O'] },
+      { title: "Lesson 4: Moving Forward", letters: ['P','Q','R','S','T'] },
+      { title: "Lesson 5: The Final Stretch", letters: ['U','V','W','X','Y','Z'] }
+    ];
+
+    let currentLessonData = [], currentLessonIndex = -1, currentIndexInLesson = 0;
+    let currentStep = 'learn', currentQuizType = 'imageToText', selectedAnswer = null;
+
+    const lessonSelectionScreen = document.getElementById('lesson-selection-screen');
+    const lessonViewScreen = document.getElementById('lesson-view-screen');
+    const dictionaryScreen = document.getElementById('dictionary-screen');
+    const lessonGrid = document.getElementById('lesson-grid');
+    const dictionaryGrid = document.getElementById('dictionary-grid');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const backFromDictionaryBtn = document.getElementById('back-from-dictionary-btn');
+    const backToLessonsBtn = document.getElementById('back-to-lessons-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const lessonTitle = document.getElementById('lesson-title');
+    const mainImageContainer = document.getElementById('main-image-container');
+    const lessonImage = document.getElementById('lesson-image');
+    const choicesContainer = document.getElementById('choices-container');
+    const feedbackText = document.getElementById('feedback-text');
+    const actionBtn = document.getElementById('action-btn');
+    const showDictionaryBtn = document.getElementById('show-dictionary-btn');
+
+    const zoomModal = document.getElementById('zoom-modal');
+    const zoomedImage = document.getElementById('zoomed-image');
+    const zoomedLetter = document.getElementById('zoomed-letter');
+    const closeZoomBtn = document.getElementById('close-zoom-btn');
+
+    async function getCompletedLessonsFromDB() {
+      if (!currentUser || currentUser.isAnonymous) return [];
+      const docRef = doc(db, `users/${currentUser.uid}/progress`, 'lessons');
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data().completed || [] : [];
+    }
+
+    async function saveCompletedLessonToDB(lessonIndex) {
+      if (!currentUser || currentUser.isAnonymous) return;
+      if (!completedLessons.includes(lessonIndex)) {
+        completedLessons.push(lessonIndex);
+        const docRef = doc(db, `users/${currentUser.uid}/progress`, 'lessons');
+        await setDoc(docRef, { completed: completedLessons }, { merge: true });
+      }
+    }
+
+    function renderDictionary() {
+      dictionaryGrid.innerHTML = allAlphabetData.map(item => `
+        <button onclick="showZoomedView('${item.letter}')" class="lesson-card bg-white p-4 rounded-lg shadow-md flex flex-col items-center text-center w-full focus:outline-none focus:ring-2 focus:ring-sky-400">
+          <img src="${item.image}" alt="Sign for ${item.letter}" class="w-24 h-24 rounded-md object-contain pointer-events-none">
+          <p class="mt-3 text-2xl font-bold text-gray-800 pointer-events-none">${item.letter}</p>
+        </button>
+      `).join('');
+    }
+    
+    function showZoomedView(letter) {
+      const item = allAlphabetData.find(d => d.letter === letter);
+      if (item) {
+        zoomedImage.src = item.image;
+        zoomedImage.alt = `Zoomed sign for ${item.letter}`;
+        zoomedLetter.textContent = item.letter;
+        zoomModal.style.display = 'flex';
+      }
+    }
+    
+    function hideZoomedView() {
+      zoomModal.style.display = 'none';
+    }
+
+    function showDictionary() {
+      lessonSelectionScreen.style.display = 'none';
+      dictionaryScreen.style.display = 'block';
+      renderDictionary();
+    }
+
+    function renderLessonSelection() {
+      lessonGrid.innerHTML = lessons.map((lesson, index) => {
+        const isCompleted = completedLessons.includes(index);
+        return `
+        <button onclick="startLesson(${index})" class="lesson-card relative bg-white p-6 rounded-lg shadow text-left">
+          ${isCompleted ? `<div class="absolute top-4 right-4 text-green-500">✔</div>` : ''}
+          <h2 class="text-xl font-bold text-gray-800">${lesson.title}</h2>
+          <p class="text-gray-500 mt-1">Letters: ${lesson.letters.join(', ')}</p>
+        </button>`;
+      }).join('');
+    }
+
+    function startLesson(lessonIndex) {
+      currentLessonIndex = lessonIndex;
+      currentLessonData = lessons[lessonIndex].letters.map(l => allAlphabetData.find(d => d.letter === l));
+      currentIndexInLesson = 0;
+      currentStep = 'learn';
+      lessonSelectionScreen.style.display = 'none';
+      dictionaryScreen.style.display = 'none';
+      lessonViewScreen.style.display = 'block';
+      loadLesson();
+    }
+
+    function showLessonSelection() {
+      renderLessonSelection();
+      lessonSelectionScreen.style.display = 'block';
+      lessonViewScreen.style.display = 'none';
+      dictionaryScreen.style.display = 'none';
+    }
+
+    function loadLesson() {
+      selectedAnswer = null;
+      feedbackText.textContent = "";
+      updateProgress();
+      const currentLesson = currentLessonData[currentIndexInLesson];
+      if (currentStep === 'learn') {
+        renderLearnView(currentLesson);
+      } else {
+        renderQuizView(currentLesson);
+      }
+    }
+
+    function renderLearnView(lesson) {
+      lessonTitle.textContent = "Learn a new sign!";
+      mainImageContainer.style.display = "block";
+      lessonImage.src = lesson.image;
+      choicesContainer.innerHTML = `<div class="option-btn p-4 rounded-lg font-semibold text-xl text-center cursor-default">${lesson.letter}</div>`;
+      actionBtn.textContent = "Got it, let's practice!";
+    }
+
+    function renderQuizView(lesson) {
+      const quizTypes = ["imageToText", "textToImage"];
+      currentQuizType = quizTypes[Math.floor(Math.random() * quizTypes.length)];
+      if (currentQuizType === 'imageToText') {
+        renderImageToTextQuiz(lesson);
+      } else {
+        renderTextToImageQuiz(lesson);
+      }
+      actionBtn.textContent = "Check";
+    }
+
+    function renderImageToTextQuiz(lesson) {
+      lessonTitle.textContent = "Choose the correct letter!";
+      mainImageContainer.style.display = "block";
+      lessonImage.src = lesson.image;
+      let options = [lesson.letter];
+      while (options.length < 2) {
+        const randomLetter = allAlphabetData[Math.floor(Math.random() * allAlphabetData.length)].letter;
+        if (!options.includes(randomLetter)) options.push(randomLetter);
+      }
+      options.sort(() => Math.random() - 0.5);
+      choicesContainer.innerHTML = options.map(opt => `
+        <button data-letter="${opt}" class="option-btn p-4 rounded-lg font-semibold text-xl text-center hover:bg-gray-100" onclick="selectOption(this)">${opt}</button>
+      `).join('');
+    }
+
+    function renderTextToImageQuiz(lesson) {
+      lessonTitle.innerHTML = `Choose the sign for: <span class="text-sky-600">${lesson.letter}</span>`;
+      mainImageContainer.style.display = "none";
+      let options = [lesson];
+      while (options.length < 2) {
+        const randomSign = allAlphabetData[Math.floor(Math.random() * allAlphabetData.length)];
+        if (!options.some(o => o.letter === randomSign.letter)) options.push(randomSign);
+      }
+      options.sort(() => Math.random() - 0.5);
+      choicesContainer.innerHTML = options.map(opt => `
+        <button data-letter="${opt.letter}" class="option-btn p-2 rounded-lg font-semibold text-xl text-center hover:bg-gray-100" onclick="selectOption(this)">
+          <img src="${opt.image}" alt="${opt.letter}" class="w-32 h-32 mx-auto rounded-md pointer-events-none object-contain">
+        </button>
+      `).join('');
+    }
+
+    function selectOption(element) {
+      selectedAnswer = element.dataset.letter;
+      document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('selected'));
+      element.classList.add('selected');
+    }
+
+    function handleAction() {
+      if (currentStep === 'learn') {
+        currentStep = "quiz";
+        loadLesson();
+      } else if (currentStep === 'quiz') {
+        checkAnswer();
+      } else if (currentStep === 'feedback') {
+        currentIndexInLesson++;
+        if (currentIndexInLesson >= currentLessonData.length) {
+          showCompletionScreen();
+        } else {
+          currentStep = "learn";
+          loadLesson();
+        }
+      }
+    }
+
+    function checkAnswer() {
+      if (!selectedAnswer) return;
+      const correctLetter = currentLessonData[currentIndexInLesson].letter;
+      const isCorrect = selectedAnswer === correctLetter;
+      document.querySelectorAll(".option-btn").forEach(btn => {
+        btn.disabled = true;
+        if (btn.dataset.letter === correctLetter) btn.classList.add("correct");
+        else if (btn.dataset.letter === selectedAnswer) btn.classList.add("incorrect");
+      });
+      feedbackText.textContent = isCorrect ? "Excellent!" : "That's not it, but keep going!";
+      feedbackText.className = isCorrect ? "mt-4 text-xl font-semibold h-8 text-green-600" : "mt-4 text-xl font-semibold h-8 text-red-600";
+      actionBtn.textContent = "Continue";
+      currentStep = "feedback";
+    }
+
+    function updateProgress() {
+      const progress = (currentIndexInLesson / currentLessonData.length) * 100;
+      progressBar.style.width = `${progress}%`;
+      progressText.textContent = `${currentIndexInLesson + 1} / ${currentLessonData.length}`;
+    }
+
+    async function showCompletionScreen() {
+      await saveCompletedLessonToDB(currentLessonIndex);
+      lessonTitle.textContent = "Lesson Complete!";
+      choicesContainer.innerHTML = `<p class="text-xl">You've mastered this set. Great job!</p>`;
+      mainImageContainer.style.display = "none";
+      actionBtn.textContent = "Back to Lessons";
+      actionBtn.onclick = () => {
+        showLessonSelection();
+        actionBtn.onclick = handleAction; // restore default
+      };
+    }
+
+    // --- Firebase Auth State ---
+    // ✅ FIX: Added a try...catch block to handle potential database errors gracefully.
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      try {
+        if (user && !user.isAnonymous) {
+          welcomeMessage.textContent = `Welcome, ${user.email}! Select a lesson.`;
+          completedLessons = await getCompletedLessonsFromDB();
+        } else {
+          welcomeMessage.textContent = 'Log in to save your progress, or continue as a guest.';
+          completedLessons = [];
+        }
+      } catch (error) {
+        console.error("Error loading user progress:", error);
+        welcomeMessage.textContent = 'Could not load progress. Please try again later.';
+        completedLessons = []; // Fallback to an empty array on error
+      } finally {
+        // This 'finally' block ensures the lessons are rendered even if the 'try' part fails.
+        renderLessonSelection();
+        
+        // Check for dictionary navigation after everything else is done
+        if (localStorage.getItem('showDictionary') === 'true') {
+          showDictionary();
+          localStorage.removeItem('showDictionary'); // Clean up the flag
+        }
+      }
+    });
+
+    async function handleInitialAuth() {
+      try {
+        if (!auth.currentUser) {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+      }
+    }
+
+    // Expose to global
+    window.startLesson = startLesson;
+    window.selectOption = selectOption;
+    window.showZoomedView = showZoomedView;
+
+    // Event Listeners
+    handleInitialAuth();
+    actionBtn.addEventListener('click', handleAction);
+    backToLessonsBtn.addEventListener('click', showLessonSelection);
+    showDictionaryBtn.addEventListener('click', showDictionary);
+    backFromDictionaryBtn.addEventListener('click', showLessonSelection);
+
+    closeZoomBtn.addEventListener('click', hideZoomedView);
+    zoomModal.addEventListener('click', (event) => {
+      if (event.target === zoomModal) {
+        hideZoomedView();
+      }
+    });
+  </script>
+</body>
+</html>
+
